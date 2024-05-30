@@ -23,6 +23,13 @@ if [ -z "$1" ] || [ -z "$2" ]; then
     exit 1
 fi
 
+# Make sure bridge hasn't already started
+if [ -f $TMPDIR/usbncmbridge/bridge ]; then
+    echo "usbncmbridge"
+    echo "start.sh can only be ran while the network bridge is stopped."
+    echo "To stop the network bridge, run stop.sh."
+fi
+
 # The script
 ipfresult=$(sysctl -w net.inet.ip.forwarding)
 ipfvalue=$(echo $ipfresult | grep -oE '[01]$')
