@@ -1,5 +1,6 @@
 #!/bin/bash
 # usbncmbridge - start.sh
+mkdir -p $TMPDIR/usbncmbridge
 
 # Defining functions
 confirm() {
@@ -23,7 +24,6 @@ if [ -z "$1" ] || [ -z "$2" ]; then
 fi
 
 # The script
-mkdir -p $TMPDIR/usbncmbridge
 ipfresult=$(sysctl -w net.inet.ip.forwarding)
 ipfvalue=$(echo $ipfresult | grep -oE '[01]$')
 fwstatus=$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate)
