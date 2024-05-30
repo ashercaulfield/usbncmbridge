@@ -16,6 +16,7 @@ confirm() {
 
 # Check if $1 or $2 is empty
 if [ -z "$1" ] || [ -z "$2" ]; then
+    echo "usbncmbridge"
     echo "Usage: $0 <source> <destination>"
     echo "To find the source and destination, run the ifconfig command."
     exit 1
