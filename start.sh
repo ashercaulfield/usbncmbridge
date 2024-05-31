@@ -37,7 +37,7 @@ fwstatus=$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate)
 if [[ $fwstatus == *"enabled"* ]]; then
   # The firewall must be temporarily disabled in order for usbncmbridge to function.
   # If you are not comfortable will this, do not run this script.
-  if ! confrm "The system firewall must be disabled in order for usbncmbridge to function. Would you like to disable the system firewall now? [y/N]"; then
+  if ! confirm "The system firewall must be disabled in order for usbncmbridge to function. Would you like to disable the system firewall now? [y/N]"; then
     exit 1
   fi
   
