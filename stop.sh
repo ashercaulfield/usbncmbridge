@@ -37,4 +37,5 @@ if [ -f $TMPDIR/usbncmbridge/bridge ]; then
   bridge=$(cat $TMPDIR/usbncmbridge/bridge)
   sudo ifconfig $bridge destroy
   rm $TMPDIR/usbncmbridge/bridge
+  echo "$bridge destroyed"
 fi
