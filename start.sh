@@ -47,7 +47,8 @@ fi
 
 if [ "$ipfvalue" != "1" ]; then
   # IP forwarding must be temporarily enabled in order for usbncmbridge to function.
-  sudo sysctl -w net.inet.ip.forwarding=1 && touch $TMPDIR/usbncmbridge/ip_forwarding_modified
+  sudo sysctl -w net.inet.ip.forwarding=1
+  touch $TMPDIR/usbncmbridge/ip_forwarding_modified
 fi
 
 bridge=$(sudo ifconfig bridge create)
