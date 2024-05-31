@@ -28,6 +28,7 @@ if [ -f $TMPDIR/usbncmbridge/bridge ]; then
     echo "usbncmbridge"
     echo "start.sh can only be ran while the network bridge is stopped."
     echo "To stop the network bridge, run stop.sh."
+    exit 1
 fi
 
 # The script
