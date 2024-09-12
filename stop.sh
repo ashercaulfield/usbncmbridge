@@ -1,41 +1,40 @@
 #!/bin/bash
-# usbncmbridge - stop.sh
-mkdir -p $TMPDIR/usbncmbridge
+# usbncmbridge - stop.sh (Linux version)
+mkdir -p /tmp/usbncmbridge
 
 # Checking if bridge was written to temp folder
 if [[ ! " $* " == *" -y"* ]]; then
-  if [[ ! -f $TMPDIR/usbncmbridge/bridge ]]; then
-    echo "usbncmbridge"
-    echo "stop.sh can only be ran while the network bridge is active."
-    echo "Add the -y parameter to this command if start.sh failed and you want to restore your firewall configuration."
-  fi
+    if [[ ! -f /tmp/usbncmbridge/bridge ]]; then
+        echo "usbncmbridge"
+        echo "stop.sh can only be ran while the network bridge is active."
+        echo "Add the -y parameter to this command if start.sh failed and you want to restore your IP forwarding and firewall configuration."
+        exit 1
+    fi
 fi
 
 # The script
-ipfresult=$(sysctl -w net.inet.ip.forwarding)
-ipfvalue=$(echo $ipfresult | grep -oE '[01]$')
-fwstatus=$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate)
-if [[ $fwstatus != *"enabled"* ]]; then
-  if [ -f $TMPDIR/usbncmbridge/firewall_modified ]; then
-    # Restore firewall config
-    echo "We've detected that usbncmbridge previously disabled your system's firewall. The firewall will now be re-enabled."
-    sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate on
-    rm $TMPDIR/usbncmbridge/firewall_modified
-  fi
-fi
-
-if [ "$ipfvalue" == "1" ]; then
-  if [ -f $TMPDIR/usbncmbridge/ip_forwarding_modified ]; then
+if [ -f /tmp/usbncmbridge/ip_forwarding_modified ]; then
     # Restore IP forwarding config
-    sudo sysctl -w net.inet.ip.forwarding=0
-    rm $TMPDIR/usbncmbridge/ip_forwarding_modified
-  fi
+    echo 0 | sudo tee /proc/sys/net/ipv4/ip_forward
+    rm /tmp/usbncmbridge/ip_forwarding_modified
+    echo "IP forwarding has been disabled."
 fi
 
-if [ -f $TMPDIR/usbncmbridge/bridge ]; then
-  # Destroy network bridge
-  bridge=$(cat $TMPDIR/usbncmbridge/bridge)
-  sudo ifconfig $bridge destroy
-  rm $TMPDIR/usbncmbridge/bridge
-  echo "$bridge destroyed"
+if [ -f /tmp/usbncmbridge/firewall_modified ]; then
+    # Reset firewall
+    sudo iptables -F
+    sudo iptables -t nat -F
+    rm /tmp/usbncmbridge/firewall_modified
+    echo "Firewall rules have been reset."
 fi
+
+if [ -f /tmp/usbncmbridge/bridge ]; then
+    # Destroy network bridge
+    bridge=$(cat /tmp/usbncmbridge/bridge)
+    sudo ip link set dev $bridge down
+    sudo ip link delete $bridge type bridge
+    rm /tmp/usbncmbridge/bridge
+    echo "Bridge $bridge destroyed"
+fi
+
+echo "usbncmbridge stopped successfully."
