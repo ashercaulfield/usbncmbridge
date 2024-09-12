@@ -1,10 +1,10 @@
 #!/bin/bash
-# usbncmbridge - start.sh
-mkdir -p $TMPDIR/usbncmbridge
+# usbncmbridge - start.sh (Linux version)
+mkdir -p /tmp/usbncmbridge
 
 # Defining functions
 confirm() {
-    read -r -p "${1:-Are you sure? [y/N]} " response
+    read -r -t 30 -p "${1:-Are you sure? [y/N]} " response
     case "$response" in
         [yY][eE][sS]|[yY]) 
             true
@@ -15,16 +15,28 @@ confirm() {
     esac
 }
 
+setup_firewall() {
+    echo "Setting up firewall..."
+    sudo iptables -F
+    sudo iptables -t nat -F
+    sudo iptables -t nat -A POSTROUTING -o $2 -j MASQUERADE
+    sudo iptables -A FORWARD -i $2 -o $1 -m state --state RELATED,ESTABLISHED -j ACCEPT
+    sudo iptables -A FORWARD -i $1 -o $2 -j ACCEPT
+    echo "Firewall setup complete."
+    touch /tmp/usbncmbridge/firewall_modified
+}
+
 # Check if $1 or $2 is empty
 if [ -z "$1" ] || [ -z "$2" ]; then
     echo "usbncmbridge"
-    echo "Usage: $0 <source> <destination>"
-    echo "To find the source and destination, run the ifconfig command."
+    echo "Usage: $0 <source> <destination> [Y]"
+    echo "To find the source and destination, run the ip link command."
+    echo "Add Y at the end to automatically set up the firewall."
     exit 1
 fi
 
 # Make sure bridge hasn't already started
-if [ -f $TMPDIR/usbncmbridge/bridge ]; then
+if [ -f /tmp/usbncmbridge/bridge ]; then
     echo "usbncmbridge"
     echo "start.sh can only be ran while the network bridge is stopped."
     echo "To stop the network bridge, run stop.sh."
@@ -32,27 +44,35 @@ if [ -f $TMPDIR/usbncmbridge/bridge ]; then
 fi
 
 # The script
-ipfresult=$(sysctl -w net.inet.ip.forwarding)
-ipfvalue=$(echo $ipfresult | grep -oE '[01]$')
-fwstatus=$(/usr/libexec/ApplicationFirewall/socketfilterfw --getglobalstate)
-if [[ $fwstatus == *"enabled"* ]]; then
-  # The firewall must be temporarily disabled in order for usbncmbridge to function.
-  # If you are not comfortable will this, do not run this script.
-  if ! confirm "The system firewall must be disabled in order for usbncmbridge to function. Would you like to disable the system firewall now? [y/N]"; then
-    exit 1
-  fi
-  
-  sudo /usr/libexec/ApplicationFirewall/socketfilterfw --setglobalstate off
-  touch $TMPDIR/usbncmbridge/firewall_modified
+if [ "$(cat /proc/sys/net/ipv4/ip_forward)" != "1" ]; then
+    # IP forwarding must be temporarily enabled
+    if ! confirm "IP forwarding must be enabled for usbncmbridge to function. Would you like to enable IP forwarding now? [y/N]"; then
+        exit 1
+    fi
+    
+    echo 1 | sudo tee /proc/sys/net/ipv4/ip_forward
+    touch /tmp/usbncmbridge/ip_forwarding_modified
 fi
 
-if [ "$ipfvalue" != "1" ]; then
-  # IP forwarding must be temporarily enabled in order for usbncmbridge to function.
-  sudo sysctl -w net.inet.ip.forwarding=1
-  touch $TMPDIR/usbncmbridge/ip_forwarding_modified
+# Create bridge
+bridge_name="usbncm0"
+sudo ip link add name $bridge_name type bridge
+echo $bridge_name > /tmp/usbncmbridge/bridge
+
+# Add interfaces to bridge
+sudo ip link set dev $1 master $bridge_name
+sudo ip link set dev $2 master $bridge_name
+
+# Bring up the bridge and interfaces
+sudo ip link set dev $bridge_name up
+sudo ip link set dev $1 up
+sudo ip link set dev $2 up
+
+echo "Bridge $bridge_name created and configured."
+
+# Firewall setup
+if [[ "$3" == "Y" ]] || confirm "Would you like to set up the firewall? [y/N]"; then
+    setup_firewall $1 $2
 fi
 
-bridge=$(sudo ifconfig bridge create)
-echo $bridge > $TMPDIR/usbncmbridge/bridge
-sudo ifconfig $bridge addm $2 addm $1 up
-echo "Done! $bridge"
+echo "usbncmbridge setup complete!"
